@@ -1,0 +1,275 @@
+﻿Exportfile for AOT version 1.0 or later
+Formatversion: 1
+
+***Element: JOB
+
+; Microsoft Dynamics AX Job: Compare_Ax6Class unloaded
+; --------------------------------------------------------------------------------
+  JOBVERSION 1
+  
+  SOURCE #Compare_Ax6Class
+    #// mazzy@mazzy.ru, 2017-10-08, https://github.com/mazzy-ax/compare-axClass
+    #static void Compare_Ax6Class(Args _args)
+    #{
+    #    #File
+    #    #define.xmlTrue('true')
+    #    #define.xmlFalse('')
+    #    #define.xmlFalseText('false')
+    #
+    #    // XML - is case sensive
+    #    #define.parm_OutputDirectory('outputDirectory')
+    #    #define.parm_ShowOverriddenMethods('showOverriddenMethods')
+    #    #define.parm_RemoveXmlComments('removeXmlComments')
+    #    #define.parm_RemoveIndent('removeIndent')
+    #
+    #    FilePath    baseDir = @'E:\Compare-axClass';
+    #    Filename    taskFileName = @'compare-axClass.xml';
+    #    XMLDocument task;
+    #
+    #    XmlNode     files;
+    #    XmlNodeList fileList;
+    #    XmlNode     file;
+    #    Filename    fileName;
+    #
+    #    XmlNodeList classes;
+    #    str         className;
+    #
+    #    int i,j;
+    #
+    #    TextBuffer  text;
+    #
+    #    Set             methods;
+    #    SetEnumerator   se;
+    #
+    #    SysDictClass    dc;
+    #    SysDictMethod   dm;
+    #
+    #    Map             mm;
+    #    MapEnumerator   me;
+    #
+    #    System.Text.RegularExpressions.Regex removeXmlCommentsRegex = new System.Text.RegularExpressions.Regex('(?m)^\s*///.*\n');
+    #    System.Text.RegularExpressions.Regex removeIndentRegex = new System.Text.RegularExpressions.Regex('(?m)^( {4}|\t)');
+    #
+    #    Map filesParameters;
+    #    Map fileParameters;
+    #
+    #
+    #    // add trail delimiter if need it
+    #    str arrangeDirectory(str directory)
+    #    {
+    #        if( directory && !strEndsWith(directory, #FilePathDelimiter) )
+    #        {
+    #            return directory + #FilePathDelimiter;
+    #        }
+    #        return directory;
+    #    }
+    #
+    #    // find a parameter in a node
+    #    XmlNode findParameterNodeIn(XmlNode node, str paramName)
+    #    {
+    #        XmlNode nodeParam;
+    #        ;
+    #        Debug::assert(node != null);
+    #        Debug::assert(paramName != '');
+    #
+    #        nodeParam = node.selectSingleNode(strFmt('ax6/%1', paramName));
+    #        if( !nodeParam )
+    #        {
+    #            nodeParam = node.selectSingleNode(strFmt('%1', paramName));
+    #        }
+    #
+    #        return nodeParam;
+    #    }
+    #
+    #    // get parameter string value
+    #    void setParameterValue(Map param, XmlNode node, str paramName)
+    #    {
+    #        XmlNode nodeParam = findParameterNodeIn(node, paramName);
+    #
+    #        if( nodeParam )
+    #        {
+    #            param.insert(paramName, nodeParam.innerText());
+    #        }
+    #    }
+    #
+    #    // get parameter Directory value
+    #    void setParameterDirValue(Map param, XmlNode node, str paramName)
+    #    {
+    #        XmlNode nodeParam = findParameterNodeIn(node, paramName);
+    #
+    #        if( nodeParam )
+    #        {
+    #            param.insert(paramName, arrangeDirectory(nodeParam.innerText()));
+    #        }
+    #    }
+    #
+    #    // set parameter boolean value
+    #    void setParameterBoolValue(Map param, XmlNode node, str paramName)
+    #    {
+    #        XmlNode nodeParam = findParameterNodeIn(node, paramName);
+    #
+    #        if( nodeParam )
+    #        {
+    #            switch(nodeParam.innerText())
+    #            {
+    #                case #xmlFalseText:
+    #                    param.insert(paramName, #xmlFalse);
+    #                    break;
+    #
+    #                case #xmlTrue:
+    #                default:
+    #                    param.insert(paramName, #xmlTrue);
+    #                    break;
+    #            }
+    #        }
+    #    }
+    #
+    #    // read or initialize all parameters
+    #    Map readParameters(XmlNode node, Map parentParameters = null)
+    #    {
+    #        Map param = new Map(Types::String, Types::String);
+    #
+    #        if( parentParameters && (param.definitionString() == parentParameters.definitionString()) )
+    #        {
+    #            // copy parameters from parent
+    #            param = Map::create(parentParameters.pack());
+    #        }
+    #        else
+    #        {
+    #            // set default values
+    #            param.insert(#parm_OutputDirectory,       '');
+    #            param.insert(#parm_ShowOverriddenMethods, #xmlFalse);
+    #            param.insert(#parm_RemoveXmlComments,     #xmlFalse);
+    #            param.insert(#parm_RemoveIndent,          #xmlFalse);
+    #        }
+    #
+    #        // read parameter values
+    #        setParameterDirValue(param, node, #parm_OutputDirectory);
+    #        setParameterBoolValue(param, node, #parm_ShowOverriddenMethods);
+    #        setParameterBoolValue(param, node, #parm_removeXmlComments);
+    #        setParameterBoolValue(param, node, #parm_removeIndent);
+    #
+    #        return param;
+    #    }
+    #
+    #    // get set of method names from set of SysDictMethod. Powershell> methods | select-object -property names
+    #    Set getMethodNames(Map parameters)
+    #    {
+    #        Set _names = new Set(Types::String);
+    #        SetEnumerator _se = methods.getEnumerator();
+    #        SysDictMethod _dm;
+    #
+    #        if( !parameters.lookup(#parm_ShowOverriddenMethods) )
+    #        {
+    #            while( _se.moveNext() )
+    #            {
+    #                _dm = _se.current();
+    #                _names.add(_dm.name());
+    #            }
+    #        }
+    #        return _names;
+    #    }
+    #
+    #    // transform Source of Method relate parameters - remove indents, remove XML comments, trim and etc.
+    #    str transformSource(str source, Map parameters)
+    #    {
+    #        if( parameters.lookup(#parm_removeXmlComments) )
+    #        {
+    #            source = removeXmlCommentsRegex.Replace(source, '');
+    #        }
+    #
+    #        if( parameters.lookup(#parm_removeIndent) )
+    #        {
+    #            source = removeIndentRegex.Replace(Source, '');
+    #        }
+    #
+    #        source = strrtrim(strLTrim(Source));
+    #        return Source;
+    #    }
+    #
+    #    //////////////////////////////////////////////////////////////////////////////
+    #    setPrefix(funcName());
+    #
+    #    baseDir = arrangeDirectory(baseDir);
+    #    task = XmlDocument::newFile(baseDir + taskFileName);
+    #    files = task.selectSingleNode('//diffAxClassMethod/files');
+    #    fileList = files.selectNodes('file');
+    #    filesParameters = readParameters(files);
+    #
+    #    for(i=0; i<fileList.length(); ++i)
+    #    {
+    #        // get File name
+    #        file = fileList.item(i);
+    #        fileName = file.getNamedElement('name').innerText();
+    #        if( !fileName )
+    #        {
+    #            warning(strFmt("#%1: File name was not found. skipped.", i));
+    #            continue;
+    #        }
+    #
+    #        fileParameters = readParameters(file, filesParameters);
+    #        fileName = baseDir + fileParameters.lookup(#parm_OutputDirectory) + fileName + '.txt';
+    #
+    #        setPrefix(strFmt("#%1, %2",i, fileName));
+    #
+    #        // get methods of classes
+    #        classes = file.selectNodes('ax6/class');
+    #        methods = new Set(Types::Class);
+    #
+    #        if( classes.length() == 0 )
+    #        {
+    #            classes = file.selectNodes('name');
+    #        }
+    #
+    #        for(j=0; j<classes.length(); ++j)
+    #        {
+    #            className = classes.item(j).innerText();
+    #
+    #            dc = new SysDictClass(className2Id(className));
+    #            if( !dc )
+    #            {
+    #                info(strFmt("A class %3 was not found. The class skipped", className));
+    #                continue;
+    #            }
+    #
+    #            methods = Set::union(methods, dc.methodsRecursive(true, true, false, className, getMethodNames(fileParameters), true));
+    #        }
+    #
+    #        // sort methods of classes
+    #        se = methods.getEnumerator();
+    #        mm = new Map(Types::String, Types::String);
+    #        while( se.moveNext() )
+    #        {
+    #            dm = se.current();
+    #            mm.insert(strFmt("\n### method: %1 ### class: %2\n\n", dm.name(), dm.parentName()), dm.getSource());
+    #        }
+    #
+    #        // transform sources of methods and add it to a text buffer
+    #        text = new TextBuffer();
+    #        me = mm.getEnumerator();
+    #        while( me.moveNext() )
+    #        {
+    #            text.appendText(me.currentKey());
+    #            text.appendText(transformSource(me.currentValue(), fileParameters));
+    #            text.appendText('\n\n\n');
+    #        }
+    #
+    #        // write the text buffer to a file
+    #        if( text.toFile(fileName, FileEncoding::UTF8) )
+    #        {
+    #            info("Done.");
+    #        }
+    #        else
+    #        {
+    #            error("Write error.");
+    #        }
+    #    }
+    #
+    #}
+  ENDSOURCE
+  PROPERTIES
+    Origin              #{97BEFEEA-BD6E-4B4F-81A1-1BE4A0F7CF5D}
+  ENDPROPERTIES
+  
+
+***Element: END

@@ -1,0 +1,334 @@
+﻿
+### method: createResponseNamespace ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+protected void createResponseNamespace()
+{
+    if (!nsmgr.hasNamespace('tfd'))
+    {
+        nsmgr.addNamespace('tfd','http://www.sat.gob.mx/TimbreFiscalDigital');
+    }
+}
+
+
+
+### method: getAllConceptos ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+protected str getAllConceptos()
+{
+    XmlNode     node;
+    XmlNode     conceptoNode;
+    XmlNodeList nodeList;
+
+    str         conceptosChain;
+
+    node = this.getXpathNode(@'/x:Comprobante/x:Conceptos');
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:Concepto', nsmgr);
+        for (conceptoNode = nodeList.nextNode(); conceptoNode != null; conceptoNode = nodeList.nextNode())
+        {
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@ClaveProdServ');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@Cantidad');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@ClaveUnidad');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@Unidad');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@Descripcion');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@ValorUnitario');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@Importe');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@Descuento');
+
+            conceptosChain += this.getConceptoTraslados(conceptoNode);
+            conceptosChain += this.getConceptoRetenciones(conceptoNode);
+
+            if (conceptoNode.selectSingleNode(@'x:InformacionAduanera/@NumeroPedimento', nsmgr) != null)
+            {
+                conceptosChain += this.getXpathValueBasedOnNode(conceptoNode, @'x:InformacionAduanera/@NumeroPedimento');
+            }
+
+            if (conceptoNode.selectSingleNode(@'x:CuentaPredial/@Numero', nsmgr) != null)
+            {
+                conceptosChain += this.getXpathValueBasedOnNode(conceptoNode, @'x:CuentaPredial/@Numero');
+            }
+        }
+
+    }
+
+    return conceptosChain;
+}
+
+
+
+### method: getAllRelacionados ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+protected str getAllRelacionados()
+{
+    XmlNode     node;
+    XmlNode     relacionadoNode;
+    XmlNodeList nodeList;
+
+    str         relacionadosChain;
+
+    node = this.getXpathNode(@'/x:Comprobante/x:CfdiRelacionados');
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:CfdiRelacionado', nsmgr);
+        for (relacionadoNode = nodeList.nextNode(); relacionadoNode != null; relacionadoNode = nodeList.nextNode())
+        {
+            relacionadosChain += this.getXpathValueBasedOnNode(relacionadoNode,'@UUID');
+        }
+    }
+
+    return relacionadosChain;
+}
+
+
+
+### method: getAllRetenciones ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+protected str getAllRetenciones()
+{
+    XmlNode     node;
+    XmlNode     retencionNode;
+    XmlNodeList nodeList;
+
+    str         retencionesChain;
+
+    node = this.getXpathNode(@'/x:Comprobante/x:Impuestos/x:Retenciones');
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:Retencion', nsmgr);
+        for (retencionNode = nodeList.nextNode(); retencionNode != null;retencionNode = nodeList.nextNode())
+        {
+            retencionesChain += this.getXpathValueBasedOnNode(retencionNode, '@Impuesto');
+            retencionesChain += this.getXpathValueBasedOnNode(retencionNode, '@Importe');
+        }
+
+    }
+
+    return retencionesChain;
+}
+
+
+
+### method: getAllTraslados ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+protected str getAllTraslados()
+{
+    XmlNode     node;
+    XmlNode     trasladoNode;
+    XmlNodeList nodeList;
+
+    str         trasladosChain;
+
+    node = this.getXpathNode(@'/x:Comprobante/x:Impuestos/x:Traslados');
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:Traslado', nsmgr);
+        for (trasladoNode = nodeList.nextNode(); trasladoNode != null;trasladoNode = nodeList.nextNode())
+        {
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@Impuesto');
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@TipoFactor');
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@TasaOCuota');
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@Importe');
+        }
+
+    }
+
+    return trasladosChain;
+}
+
+
+
+### method: getConceptoRetenciones ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+protected str getConceptoRetenciones(XmlNode _conceptoNode)
+{
+    XmlNode     node;
+    XmlNode     retencionNode;
+    XmlNodeList nodeList;
+
+    str         retencionesChain;
+
+    node = _conceptoNode.selectSingleNode(@'x:Impuestos/x:Retenciones', nsmgr);
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:Retencion', nsmgr);
+        for (retencionNode = nodeList.nextNode(); retencionNode != null; retencionNode = nodeList.nextNode())
+        {
+            retencionesChain += this.getXpathValueBasedOnNode(retencionNode, '@Base');
+            retencionesChain += this.getXpathValueBasedOnNode(retencionNode, '@Impuesto');
+            retencionesChain += this.getXpathValueBasedOnNode(retencionNode, '@TipoFactor');
+            retencionesChain += this.getXpathValueBasedOnNode(retencionNode, '@TasaOCuota');
+            retencionesChain += this.getXpathValueBasedOnNode(retencionNode, '@Importe');
+        }
+    }
+
+    return retencionesChain;
+}
+
+
+
+### method: getConceptoTraslados ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+protected str getConceptoTraslados(XmlNode _conceptoNode)
+{
+    XmlNode     node;
+    XmlNode     trasladoNode;
+    XmlNodeList nodeList;
+
+    str         trasladosChain;
+
+    node = _conceptoNode.selectSingleNode(@'x:Impuestos/x:Traslados', nsmgr);
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:Traslado', nsmgr);
+        for (trasladoNode = nodeList.nextNode(); trasladoNode != null; trasladoNode = nodeList.nextNode())
+        {
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@Base');
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@Impuesto');
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@TipoFactor');
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@TasaOCuota');
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@Importe');
+        }
+    }
+
+    return trasladosChain;
+}
+
+
+
+### method: getOriginalChain ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+public str getOriginalChain()
+{
+    str originalChain;
+
+    originalChain = #delimiter;
+
+    originalChain += this.getXpathValue(@'/x:Comprobante/@Version');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@Serie');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@Folio');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@Fecha');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@FormaPago');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@NoCertificado');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@CondicionesDePago');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@SubTotal');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@Descuento');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@Moneda');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@TipoCambio');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@Total');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@TipoDeComprobante');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@MetodoPago');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@LugarExpedicion');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@Confirmacion');
+
+    // Related documents
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:CfdiRelacionados/@TipoRelacion');
+    originalChain += this.compressBlankSpace(this.getAllRelacionados());
+
+    //   Company Information (Emisor)
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/@Rfc');
+    originalChain += this.compressBlankSpace(this.getXpathValue(@'/x:Comprobante/x:Emisor/@Nombre'));
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/@RegimenFiscal');
+
+    // Customer information (Receptor)
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/@Rfc');
+    originalChain += this.compressBlankSpace(this.getXpathValue(@'/x:Comprobante/x:Receptor/@Nombre'));
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/@ResidenciaFiscal');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/@NumRegIdTrib');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/@UsoCFDI');
+
+    // Concepts (+ informacion Aduana + Cuenta Predial)
+    originalChain += this.compressBlankSpace(this.getAllConceptos());
+
+    // Retained taxes
+    originalChain += this.getAllRetenciones();
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Impuestos/@TotalImpuestosRetenidos');
+
+    //Sales taxes
+    originalChain += this.getAllTraslados();
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Impuestos/@TotalImpuestosTrasladados');
+
+    originalChain += #delimiter + #delimiter;
+
+    originalChain = this.getFormattedOriginalChain(originalChain);
+
+    return originalChain;
+}
+
+
+
+### method: getResponseFechaTimbrado ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+public str getResponseFechaTimbrado()
+{
+    str                 response;
+    ;
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/tfd:TimbreFiscalDigital/@FechaTimbrado',false);
+
+    return response;
+}
+
+
+
+### method: getResponseSATCertificateNumber ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+public str getResponseSATCertificateNumber()
+{
+    str                 response;
+    ;
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/tfd:TimbreFiscalDigital/@NoCertificadoSAT',false);
+
+    return response;
+}
+
+
+
+### method: getResponseSelloCFD ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+public str getResponseSelloCFD()
+{
+    str                 response;
+    ;
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/tfd:TimbreFiscalDigital/@SelloCFD',false);
+
+    return response;
+}
+
+
+
+### method: getResponseSelloSAT ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+public str getResponseSelloSAT()
+{
+    str                 response;
+    ;
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/tfd:TimbreFiscalDigital/@SelloSAT',false);
+
+    return response;
+}
+
+
+
+### method: getResponseUUID ### class: EInvoiceCFDIXMLDocReader_V3_3_MX
+
+public str getResponseUUID()
+{
+    str                 response;
+    ;
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/tfd:TimbreFiscalDigital/@UUID',false);
+
+    return response;
+}
+
+

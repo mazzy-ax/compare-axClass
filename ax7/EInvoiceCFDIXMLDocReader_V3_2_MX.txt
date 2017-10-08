@@ -1,0 +1,549 @@
+﻿
+### method: compressBlankSpace ### class: EInvoiceXMLDocReader_MX
+
+protected str removeDuplicatedSpaces(str _original)
+{
+    TextBuffer buffer = new TextBuffer();
+    buffer.setText(_original);
+    buffer.replace('[ ]+', ' ');
+
+    return buffer.getText();
+}
+
+
+
+### method: construct ### class: EInvoiceXMLDocReader_MX
+
+public static EInvoiceXMLDocReader_MX construct(EInvoiceJour_MX _eInvoiceJour)
+{
+    if (!_eInvoiceJour.CFDI)
+    {
+        throw error("@SYS341183");
+    }
+        
+    return EInvoiceXMLDocReader_MX::create(_eInvoiceJour.CFDIVersion, _eInvoiceJour.XMLDoc, _eInvoiceJour.RefTableId);
+}
+
+
+
+### method: constructFromResponseMessage ### class: EInvoiceXMLDocReader_MX
+
+public static EInvoiceXMLDocReader_MX constructFromResponseMessage(EInvoiceCFDIVersion_MX _version, XML _responseMessage)
+{
+    return EInvoiceXMLDocReader_MX::create(_version, _responseMessage);
+}
+
+
+
+### method: create ### class: EInvoiceXMLDocReader_MX
+
+private static EInvoiceXMLDocReader_MX create(EInvoiceCFDIVersion_MX _version, XML _responseMessage, RefTableId _refTableId = 0)
+{
+    XmlDocument xmlDoc = XmlDocument::newXml(_responseMessage);
+
+    switch (_version)
+    {
+        case EInvoiceCFDIVersion_MX::V3_2:
+            return new EInvoiceXMLDocReader_MX(xmlDoc);
+
+        case EInvoiceCFDIVersion_MX::V3_3:
+            switch (_refTableId)
+            {
+                //TODO v-semaz to v-semaz: realize it
+                //case tableNum(CustTrans):
+                //    return new EInvoiceXMLDocReaderPayment_V3_3_MX(xmlDoc);
+
+                default:
+                    return new EInvoiceXMLDocReader_V3_3_MX(xmlDoc);
+            }
+
+        default:
+            throw error("@SYS341183");
+    }
+}
+
+
+
+### method: createResponseNamespace ### class: EInvoiceXMLDocReader_MX
+
+protected void createResponseNamespace()
+{
+    if (!nsmgr.hasNamespace('timbre'))
+    {
+        nsmgr.addNamespace('timbre','http://www.sat.gob.mx/TimbreFiscalDigital');
+    }
+}
+
+
+
+### method: getAllConceptos ### class: EInvoiceXMLDocReader_MX
+
+protected str getAllConceptos()
+{
+    XmlNode     node;
+    XmlNode     conceptoNode;
+    XmlNodeList nodeList;
+    str         conceptosChain;
+
+    node = this.getXpathNode(@'/x:Comprobante/x:Conceptos');
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:Concepto', nsmgr);
+        for (conceptoNode = nodeList.nextNode(); conceptoNode != null; conceptoNode = nodeList.nextNode())
+        {
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@cantidad');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@unidad');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@noIdentificacion');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@descripcion');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@valorUnitario');
+            conceptosChain += this.getXpathValueBasedOnNode(conceptoNode,'@importe');
+
+            if (conceptoNode.selectSingleNode(@'x:CuentaPredial/@numero', nsmgr) != null)
+            {
+                conceptosChain += this.getXpathValueBasedOnNode(conceptoNode, @'x:CuentaPredial/@numero');
+            }
+            else if (conceptoNode.selectSingleNode(@'x:InformacionAduanera/@numero', nsmgr) != null)
+            {
+                conceptosChain += this.getXpathValueBasedOnNode(conceptoNode, @'x:InformacionAduanera/@numero');
+                conceptosChain += this.getXpathValueBasedOnNode(conceptoNode, @'x:InformacionAduanera/@fecha');
+                conceptosChain += this.getXpathValueBasedOnNode(conceptoNode, @'x:InformacionAduanera/@aduana');
+            }
+        }
+    }
+
+    return conceptosChain;
+}
+
+
+
+### method: getAllRegimenFiscal ### class: EInvoiceXMLDocReader_MX
+
+protected str getAllRegimenFiscal()
+{
+    XmlNode     node;
+    XmlNode     conceptoNode;
+    XmlNodeList nodeList;
+    str         regimenChain;
+
+    node = this.getXpathNode(@'/x:Comprobante/x:Emisor');
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:RegimenFiscal', nsmgr);
+        for (conceptoNode = nodeList.nextNode(); conceptoNode != null; conceptoNode = nodeList.nextNode())
+        {
+            regimenChain += this.getXpathValueBasedOnNode(conceptoNode,'@Regimen');
+        }
+    }
+
+    return regimenChain;
+}
+
+
+
+### method: getAllRetenciones ### class: EInvoiceXMLDocReader_MX
+
+protected str getAllRetenciones()
+{
+    XmlNode     node;
+    XmlNode     retencionNode;
+    XmlNodeList nodeList;
+    str         retencionesChain;
+
+    node = this.getXpathNode(@'/x:Comprobante/x:Impuestos/x:Retenciones');
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:Retencion', nsmgr);
+        for (retencionNode = nodeList.nextNode(); retencionNode != null;retencionNode = nodeList.nextNode())
+        {
+            retencionesChain += this.getXpathValueBasedOnNode(retencionNode, '@impuesto');
+            retencionesChain += this.getXpathValueBasedOnNode(retencionNode, '@importe');
+        }
+    }
+
+    return retencionesChain;
+}
+
+
+
+### method: getAllTraslados ### class: EInvoiceXMLDocReader_MX
+
+protected str getAllTraslados()
+{
+    XmlNode     node;
+    XmlNode     trasladoNode;
+    XmlNodeList nodeList;
+    str         trasladosChain;
+
+    node = this.getXpathNode(@'/x:Comprobante/x:Impuestos/x:Traslados');
+
+    if (node != null)
+    {
+        nodeList = node.selectNodes(@'x:Traslado', nsmgr);
+        for (trasladoNode = nodeList.nextNode(); trasladoNode != null; trasladoNode = nodeList.nextNode())
+        {
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@impuesto');
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@tasa');
+            trasladosChain += this.getXpathValueBasedOnNode(trasladoNode, '@importe');
+        }
+    }
+
+    return trasladosChain;
+}
+
+
+
+### method: getDeclaration ### class: EInvoiceXMLDocReader_MX
+
+public str getDeclaration()
+{
+    str declaration;
+    
+    #define.UTF8('UTF-8')
+    #define.CharNewLine('\n')
+    
+    declaration = xmlDocument.createXmlDeclaration('1.0', #UTF8, '').toString();
+    declaration = declaration + #CharNewLine;
+    
+    return declaration;
+}
+
+
+
+### method: getFormattedOriginalChain ### class: EInvoiceXMLDocReader_MX
+
+protected str getFormattedOriginalChain(str _chain)
+{
+    str formattedChain = System.Web.HttpUtility::HtmlDecode(_chain);
+
+    return formattedChain;
+}
+
+
+
+### method: getNameSpace ### class: EInvoiceXMLDocReader_MX
+
+protected str getNameSpace()
+{
+    return 'http://www.sat.gob.mx/cfd/3';
+}
+
+
+
+### method: getOriginalChain ### class: EInvoiceXMLDocReader_MX
+
+public str getOriginalChain()
+{
+    str originalChain = #delimiter;
+
+    originalChain += this.getXpathValue(@'/x:Comprobante/@version');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@fecha');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@tipoDeComprobante');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@formaDePago');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@condicionesDePago');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@subTotal');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@descuento');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@TipoCambio');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@Moneda');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@total');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@metodoDePago');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@LugarExpedicion');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@NumCtaPago');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@FolioFiscalorig');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@SerieFolioFiscalorig');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@FechaFolioFiscalorig');
+    originalChain += this.getXpathValue(@'/x:Comprobante/@MontoFiscalOrig');
+
+    //   Company Information (Emisor)
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/@rfc');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/@nombre');
+
+    // Company fiscal address (Domicilio Fiscal)
+
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@calle');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@noExterior');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@noInterior');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@colonia');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@localidad');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@referencia');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@municipio');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@estado');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@pais');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:DomicilioFiscal/@codigoPostal');
+
+    //    Company delivery address (ExpedidoEn)
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@calle');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@noExterior');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@noInterior');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@colonia');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@localidad');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@referencia');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@municipio');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@estado');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@pais');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Emisor/x:ExpedidoEn/@codigoPostal');
+
+    // Fiscal Regime
+    originalChain += this.getAllRegimenFiscal();
+
+    // Customer information (Receptor)
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/@rfc');
+    originalChain += this.removeDuplicatedSpaces(this.getXpathValue(@'/x:Comprobante/x:Receptor/@nombre'));
+
+    //Customer main address (Domicilio)
+    originalChain += this.removeDuplicatedSpaces(this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@calle'));
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@noExterior');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@noInterior');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@colonia');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@localidad');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@referencia');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@municipio');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@estado');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@pais');
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Receptor/x:Domicilio/@codigoPostal');
+
+    // Concepts (+ informacion Aduana + Cuenta Predial)
+    originalChain += this.removeDuplicatedSpaces(this.getAllConceptos());
+
+    // Retained taxes
+    originalChain += this.getAllRetenciones();
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Impuestos/@totalImpuestosRetenidos');
+
+    //Sales taxes
+    originalChain += this.getAllTraslados();
+    originalChain += this.getXpathValue(@'/x:Comprobante/x:Impuestos/@totalImpuestosTrasladados');
+
+    originalChain += #delimiter + #delimiter;
+
+    originalChain = this.getFormattedOriginalChain(originalChain);
+
+    return originalChain;
+}
+
+
+
+### method: getResponse ### class: EInvoiceXMLDocReader_MX
+
+public str getResponse()
+{
+    str response;
+
+    response = this.getXpathValue(@'/Resultado/@IdRespuesta',false);
+
+    return response;
+}
+
+
+
+### method: getResponseComprobanteNode ### class: EInvoiceXMLDocReader_MX
+
+public str getResponseComprobanteNode()
+{
+    str response;
+
+    response = this.getXpathNode('/Resultado/x:Comprobante').toString();
+    return response;
+}
+
+
+
+### method: getResponseDescription ### class: EInvoiceXMLDocReader_MX
+
+public str getResponseDescription()
+{
+    str response;
+
+    response = this.getXpathValue(@'/Resultado/@Descripcion',false);
+
+    return response;
+}
+
+
+
+### method: getResponseFechaTimbrado ### class: EInvoiceXMLDocReader_MX
+
+public str getResponseFechaTimbrado()
+{
+    str response;
+    
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/timbre:TimbreFiscalDigital/@FechaTimbrado',false);
+
+    return response;
+}
+
+
+
+### method: getResponseNode ### class: EInvoiceXMLDocReader_MX
+
+public str getResponseNode()
+{
+    XmlNode response;
+
+    response = this.getXpathNode('/Resultado').cloneNode(false);
+
+    return response.toString();
+}
+
+
+
+### method: getResponseSATCertificateNumber ### class: EInvoiceXMLDocReader_MX
+
+public str getResponseSATCertificateNumber()
+{
+    str response;
+    
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/timbre:TimbreFiscalDigital/@noCertificadoSAT',false);
+
+    return response;
+}
+
+
+
+### method: getResponseSelloCFD ### class: EInvoiceXMLDocReader_MX
+
+public str getResponseSelloCFD()
+{
+    str response;
+    
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/timbre:TimbreFiscalDigital/@selloCFD',false);
+
+    return response;
+}
+
+
+
+### method: getResponseSelloSAT ### class: EInvoiceXMLDocReader_MX
+
+public str getResponseSelloSAT()
+{
+    str response;
+    
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/timbre:TimbreFiscalDigital/@selloSAT',false);
+
+    return response;
+}
+
+
+
+### method: getResponseUUID ### class: EInvoiceXMLDocReader_MX
+
+public str getResponseUUID()
+{
+    str response;
+    
+    this.createResponseNamespace();
+    response = this.getXpathValue(@'/Resultado/x:Comprobante/x:Complemento/timbre:TimbreFiscalDigital/@UUID',false);
+
+    return response;
+}
+
+
+
+### method: getSello ### class: EInvoiceXMLDocReader_MX
+
+public str getSello()
+{
+    str sello;
+    str trimmedStamp;
+
+    sello = this.getXpathValue(@'/x:Comprobante/@sello');
+
+    trimmedStamp = substr(sello, 2, strLen(sello));
+
+    return trimmedStamp;
+}
+
+
+
+### method: getXMLNodeToReceiveSello ### class: EInvoiceXMLDocReader_MX
+
+public XmlNode getXMLNodeToReceiveSello()
+{
+    return this.getXpathNode(@'/x:Comprobante');
+}
+
+
+
+### method: getXpathNode ### class: EInvoiceXMLDocReader_MX
+
+protected XmlNode getXpathNode(str _xPath)
+{
+    XmlNode node;
+
+    node = xmlDocument.selectSingleNode(_xPath, nsmgr);
+
+    return node;
+}
+
+
+
+### method: getXpathValue ### class: EInvoiceXMLDocReader_MX
+
+protected str getXpathValue(str _xPath, boolean _delimiter = true)
+{
+    XmlNode node;
+    str     xPathValue;
+
+    node = xmlDocument.selectSingleNode(_xPath, nsmgr);
+
+    if (node != null)
+    {
+        if (_delimiter)
+        {
+            xPathValue = #delimiter + node.innerXml();
+        }
+        else
+        {
+            xPathValue = node.innerXml();
+        }
+    }
+
+    return xPathValue;
+}
+
+
+
+### method: getXpathValueBasedOnNode ### class: EInvoiceXMLDocReader_MX
+
+protected str getXpathValueBasedOnNode(XmlNode _node, str _xPath)
+{
+    XmlNode     node;
+    str         xPathValue;
+
+    node = _node.selectSingleNode(_xPath, nsmgr);
+
+    if (node != null)
+    {
+        xPathValue = #delimiter + node.innerXml();
+    }
+
+    return xPathValue;
+}
+
+
+
+### method: new ### class: EInvoiceXMLDocReader_MX
+
+protected void new(XmlDocument _xmlDocument)
+{
+    xmlDocument = _xmlDocument;
+    nsmgr = new XmlNamespaceManager(xmlDocument.nameTable());
+    nsmgr.addNamespace('x', this.getNameSpace());
+}
+
+
+
+### method: toString ### class: EInvoiceXMLDocReader_MX
+
+public str toString()
+{
+    return xmlDocument.toString();
+}
+
+
