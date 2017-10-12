@@ -1,7 +1,6 @@
 mazzy@mazzy.ru, 2017-10-12, [https://github.com/mazzy-ax/compare-axClass](https://github.com/mazzy-ax/compare-axClass)
 
-
-![version](https://img.shields.io/badge/version-0.1.0-green.svg) ![license](https://img.shields.io/badge/license-MIT-blue.svg)
+![version](https://img.shields.io/badge/version-0.2.0-green.svg) ![license](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ---
 
@@ -43,7 +42,8 @@ mazzy@mazzy.ru, 2017-10-12, [https://github.com/mazzy-ax/compare-axClass](https:
 
 ![replace влияет на сортировку методов](media/replace.png)
 
-параметры
+параметры:
+
 * outputDirectory
 * removeXmlComments
 * removeIndent
@@ -92,3 +92,12 @@ mazzy@mazzy.ru, 2017-10-12, [https://github.com/mazzy-ax/compare-axClass](https:
 # Известные проблемы
 
 * параметр showOverriddenMethods обрабатывается только в ax6. вывод методов ax7 пока игнорирует этот параметр
+
+# Изменения
+
+[0.2](https://github.com/mazzy-ax/compare-axClass/compare/v0.1...v0.2)
+
+* переработана работа с параметрами
+* увеличено число параметров в xml-файле с задачей
+* процедура подготовки к сравнению теперь умеет удалять все файлы - массово и по одному
+* добавлены verbose-сообщения
