@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- mazzy@mazzy.ru, 2017-10-08, https://github.com/mazzy-ax/compare-axClass -->
+<!-- mazzy@mazzy.ru, 2017-10-12, https://github.com/mazzy-ax/compare-axClass -->
 <diffAxClassMethod>
-	<files>
+	<parameters>
 		<removeXmlComments />
 		<showOverriddenMethods>false</showOverriddenMethods>
 		<ax6>
@@ -11,7 +11,8 @@
 			<removeIndent />
 			<outputDirectory>ax7\</outputDirectory>
 		</ax7>
-
+	</parameters>
+	<files>
 		<file>
 			<name>EInvoiceCFDIXMLDocReader_V3_2_MX</name>
 			<ax6>

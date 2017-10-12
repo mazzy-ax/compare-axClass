@@ -1,4 +1,11 @@
-# mazzy@mazzy.ru, 2017-10-08, https://github.com/mazzy-ax/compare-axClass
+# mazzy@mazzy.ru, 2017-10-12, https://github.com/mazzy-ax/compare-axClass
+
+#require modules Write-ProgressEx
+#
+# https://github.com/mazzy-ax/Write-ProgressEx
+# Powershell 5+:
+# PS> install-module Write-ProgressEx
+#
 
 [CmdletBinding()]
 [OutputType([String])]
@@ -10,101 +17,120 @@ param (
 
     [Parameter(ValueFromPipelineByPropertyName = $true)]
     [string]$BaseDir = (Get-Location),
-    
+
     [Parameter(ValueFromPipelineByPropertyName = $true)]
     [string]$axClassDir = 'E:\App71\Source\AppIL\Metadata\ApplicationSuite\Foundation\AxClass\'
 )
 
+# XML - is case sensitive!!!
 process {
-    function findParameterNodeIn ([System.Xml.XmlElement]$node, [string]$paramName) {
-        $n = $node.ax7[$paramName]
-        if ( -not $n ) {
-            $n = $node[$paramName]
+    function nz ($notNullValue, $zeroValue ) {
+        if( $notNullValue) {
+            $notNullValue
         }
-        return $n
-    }
-
-    function setParameter ($param, [System.Xml.XmlElement]$node, [string]$paramName) {
-        $paramNode = findParameterNodeIn $node $paramName 
-        if ( $paramNode ) {
-            $param[$paramName] = $paramNode.InnerText
+        else {
+            $zeroValue
         }
     }
 
-    function setParameterBool ($param, [System.Xml.XmlElement]$node, [string]$paramName) {
-        $paramNode = findParameterNodeIn $node $paramName
-        if ( $paramNode ) {
-            $param[$paramName] = $paramNode.InnerText -ne 'false'
+    function convertTo-boolean {
+        [CmdletBinding()]
+        [OutputType([boolean])]
+        param (
+            [Parameter(ValueFromPipeline = $true, Position = 0)]
+            [System.Xml.XmlNode]$node
+        )
+        process {
+            $node -and ($node.InnerText -ne 'false')
         }
     }
 
-    # XML - is case sensive
-    function readParameters([System.Xml.XmlElement]$node, $parentParam = @{}) {
-        $param = @{}
-
-        $parentParam.Keys | ForEach-Object {
-            $param[$_] = $parentParam[$_]
+    function get-Nodes {
+        [CmdletBinding()]
+        [OutputType([System.Xml.XmlNode[]])]
+        param (
+            [string]$xPath,
+            [System.Xml.XmlNode[]]$nodes
+        )
+        process {
+            $nodes | ForEach-Object {
+                if ( $_.ax7 ) {
+                    $_.ax7.SelectNodes($xPath)
+                }
+                $_.SelectNodes($xPath)
+            } | Where-Object { $_ }
         }
-        
-        setParameter     $param $node 'outputDirectory'
-        setParameterBool $param $node 'showOverriddenMethods'
-        setParameterBool $param $node 'removeXmlComments'
-        setParameterBool $param $node 'removeIndent'
-
-        return $param
     }
+    function get-Parameter {
+        [CmdletBinding()]
+        [OutputType([System.Xml.XmlNode[]])]
+        param (
+            [string]$xPath,
+            [System.Xml.XmlNode[]]$nodes
+        )
+        process {
+            get-Nodes $xPath $nodes | Select-Object -First 1
+        }
+    }
+
 
     [XML]$task = Get-Content $TaskPath
-    $files = $task.diffAxClassMethod.files
-    $parameters = readParameters $files
 
-    $files.file | ForEach-Object {
-        $fileName = $_.Name
+    $parameters = $task.diffAxClassMethod.parameters
+    $files = $task.diffAxClassMethod.files
+
+    Write-ProgressEx "compare-ax7class" -total $files.ChildNodes.Count -ShowMessages
+    $files.file | Write-ProgressEx "compare-ax7class" -increment -ShowMessages | ForEach-Object {
+        $file = $_
+        $fileName = $file.name
         if ( -not $fileName ) {
             Write-Warning "#: File name was not found. skipped."
             continue
         }
-        $fileParameters = readParameters $_ $parameters
-        $fileName = (Join-Path (Join-Path $BaseDir $fileParameters.OutputDirectory) $fileName) + '.txt'
 
-        $replace = @{}
-        $_.ax7.sortmethod | ForEach-Object {
-            if ( $_.InnerText ) {
-                $replace[$_.InnerText] = $_.Attributes['as'].Value
-            }
+        $removeXmlComments = get-Parameter 'removeXmlComments' ($file, $parameters) | convertTo-boolean
+        $removeIndent = get-Parameter 'removeIndent' ($file, $parameters) | convertTo-boolean
+        $OutputDirectory = get-Parameter 'outputDirectory' ($file, $parameters)
+        $fileName = (Join-Path (Join-Path $BaseDir $OutputDirectory.InnerText) $fileName) + '.txt'
+
+        $sortmethods = @{}
+        get-Nodes 'sortmethod' $file | Where-Object { $_.InnerText -and $_.as } | ForEach-Object {
+            $sortmethods[$_.InnerText] = $_.as
         }
 
-        $classes = $_.ax7.class
-        if ( -not $classes ) {
-            $classes = $_.Name
-        }
-
-        $classes | ForEach-Object {
-            $className = $_
+        $classes = nz (get-Nodes 'class' $file) $file.SelectSingleNode('name')
+        $text = $classes | Where-Object { $_.InnerText } | ForEach-Object {
+            $className = $_.InnerText
             $classFile = (Join-Path $axClassDir $className) + '.xml'
-            [XML]$class = Get-Content $classFile -ErrorAction Stop
 
-            $class.AxClass.SourceCode.Methods.Method | ForEach-Object {
-                if ( $_.Name -in $Replace.Keys ) {
-                    $_.Name = $Replace[$_.Name]
-                }
-                $_.Name = "`n### method: $($_.Name) ### class: $className"
+            [XML]$classContent = Get-Content $classFile -ErrorAction SilentlyContinue
 
-                if ( $fileParameters.removeXmlComments ) {
-                    $_.Source.InnerXML = $_.Source.InnerXML -replace '(?m)^\s*///.*\n' # remove document comment
-                }
-
-                if ( $fileParameters.removeIndent) {
-                    $_.Source.InnerXML = $_.Source.InnerXML -replace '(?m)^( {4}|\t)' # remove Indent
-                }
-
-                $_
-            } | Sort-Object Name | ForEach-Object {
-                $_.Name
-                $_.Source.InnerText
+            if ( -not $classContent ) {
+                Write-Warning "Class was not readed. $classFile"
             }
-        } | Out-File $fileName -Encoding utf8
-    }
+            else {
+                $classContent.AxClass.SourceCode.Methods.Method | Where-Object { $_ } | ForEach-Object {
+                    $method = $_
+                    $methodName = nz $sortmethods[$method.name] $method.name
+                    $method.Name = "`n### method: $methodName ### class: $className"
 
-    Write-Output "Done."
+                    if ( $removeXmlComments ) {
+                        $method.Source.InnerXML = $method.Source.InnerXML -replace '(?m)^\s*///.*\n' # remove document comment
+                    }
+
+                    if ( $removeIndent ) {
+                        $method.Source.InnerXML = $method.Source.InnerXML -replace '(?m)^( {4}|\t)' # remove Indent
+                    }
+
+                    $method
+                } | Sort-Object Name | ForEach-Object {
+                    $_.Name
+                    $_.Source.InnerText
+                }
+            }
+        }
+        if ($text) {
+            $text | Out-File $fileName -Encoding utf8
+        }
+    }
 }

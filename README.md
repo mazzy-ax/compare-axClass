@@ -1,4 +1,4 @@
-mazzy@mazzy.ru, 2017-10-08, [https://github.com/mazzy-ax/compare-axClass](https://github.com/mazzy-ax/compare-axClass)
+mazzy@mazzy.ru, 2017-10-12, [https://github.com/mazzy-ax/compare-axClass](https://github.com/mazzy-ax/compare-axClass)
 
 
 ![version](https://img.shields.io/badge/version-0.1.0-green.svg) ![license](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -49,7 +49,7 @@ mazzy@mazzy.ru, 2017-10-08, [https://github.com/mazzy-ax/compare-axClass](https:
 * removeIndent
 * showOverriddenMethods
 
-можно разместить внутри тега &lt;file&gt; - тогда параметр влияет на один файл. А можно разместить внутри группового тега &lt;files&gt; - тогда параметр влияет на все файлы. Параметры также можно разместить внутри тегов &lt;ax6&gt; и &lt;ax7&gt; - тогда они влияют только на соответствующую версию. Чем глубже в xml находится параметр, тем больший приоритет он имеет. 
+можно разместить внутри тега &lt;file&gt; - тогда параметр влияет на один файл. А можно разместить внутри группового тега &lt;files&gt; - тогда параметр влияет на все файлы. Параметры также можно разместить внутри тегов &lt;ax6&gt; и &lt;ax7&gt; - тогда они влияют только на соответствующую версию. Чем глубже в xml находится параметр, тем больший приоритет он имеет.
 
 ### Параметр showOverriddenMethods
 
@@ -92,4 +92,3 @@ mazzy@mazzy.ru, 2017-10-08, [https://github.com/mazzy-ax/compare-axClass](https:
 # Известные проблемы
 
 * параметр showOverriddenMethods обрабатывается только в ax6. вывод методов ax7 пока игнорирует этот параметр
-* &lt;class&gt; можно разместить только внути ax6 или ax7. Общие для разных версий классы пока надо явно указывать для каждой версии.
