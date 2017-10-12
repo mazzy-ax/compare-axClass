@@ -2,7 +2,6 @@
 <!-- mazzy@mazzy.ru, 2017-10-12, https://github.com/mazzy-ax/compare-axClass -->
 <diffAxClassMethod>
 	<parameters>
-		<removeAllOutputFiles />
 		<removeXmlComments />
 		<showOverriddenMethods>false</showOverriddenMethods>
 		<ax6>
@@ -10,12 +9,12 @@
 		</ax6>
 		<ax7>
 			<removeIndent />
-			<classDir>E:\App71\Source\AppIL\Metadata\ApplicationSuite\Foundation\AxClass\</classDir>
 			<outputDirectory>ax7\</outputDirectory>
 		</ax7>
 	</parameters>
 	<files>
-		<file><name>EInvoiceCFDIXMLDocReader_V3_2_MX</name>
+		<file>
+			<name>EInvoiceCFDIXMLDocReader_V3_2_MX</name>
 			<ax6>
 				<class>EInvoiceCFDIXMLDocReader_V3_2_MX</class>
 				<class>EInvoiceCFDIXMLDocReader_MX</class>
@@ -26,7 +25,9 @@
 				<sortmethod as="compressBlankSpace">removeDuplicatedSpaces</sortmethod>
 			</ax7>
 		</file>
-		<file><name>EInvoiceCFDIXMLDocReader_V3_3_MX</name>
+
+		<file>
+			<name>EInvoiceCFDIXMLDocReader_V3_3_MX</name>
 			<ax7>
 				<class>EInvoiceXMLDocReader_V3_3_MX</class>
 			</ax7>
